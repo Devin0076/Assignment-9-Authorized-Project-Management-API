@@ -93,40 +93,49 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
-// POST /api/login - User login (TODO: Replace with JWT)
+// POST /api/login - User login (JWT version)
 app.post('/api/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-        
+
+        // Find user
         const user = await User.findOne({ where: { email } });
         if (!user) {
             return res.status(401).json({ error: 'Invalid email or password' });
         }
-        
-        const isValidPassword = await bcrypt.compare(password, user.password);
-        if (!isValidPassword) {
+
+        // Validate password
+        const isValid = await bcrypt.compare(password, user.password);
+        if (!isValid) {
             return res.status(401).json({ error: 'Invalid email or password' });
         }
-        
-        // Create session (TODO: Replace with JWT)
-        req.session.userId = user.id;
-        req.session.userName = user.name;
-        req.session.userEmail = user.email;
-        
+
+        // Create JWT payload
+        const payload = {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role
+        };
+
+        // Generate token
+        const token = jwt.sign(payload, process.env.JWT_SECRET, {
+            expiresIn: process.env.JWT_EXPIRES_IN
+        });
+
+        // Respond with token + user data
         res.json({
             message: 'Login successful',
-            user: {
-                id: user.id,
-                name: user.name,
-                email: user.email
-            }
+            token,
+            user: payload
         });
-        
+
     } catch (error) {
         console.error('Error logging in user:', error);
         res.status(500).json({ error: 'Failed to login' });
     }
 });
+
 
 // POST /api/logout - User logout
 app.post('/api/logout', (req, res) => {
