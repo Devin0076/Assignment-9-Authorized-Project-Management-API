@@ -47,6 +47,36 @@ function requireAuth(req, res, next) {
 }
 
 
+function requireManager(req, res, next) {
+    // Must be authenticated first
+    if (!req.user) {
+        return res.status(401).json({ error: 'Authentication required. Please log in.' });
+    }
+
+    // Allow managers and admins
+    if (req.user.role === 'manager' || req.user.role === 'admin') {
+        return next();
+    }
+
+    return res.status(403).json({ error: 'Access denied. Manager or admin role required.' });
+}
+
+function requireAdmin(req, res, next) {
+    // Must be authenticated first
+    if (!req.user) {
+        return res.status(401).json({ error: 'Authentication required. Please log in.' });
+    }
+
+    // Allow only admins
+    if (req.user.role === 'admin') {
+        return next();
+    }
+
+    return res.status(403).json({ error: 'Access denied. Admin role required.' });
+}
+
+
+
 // Test database connection
 async function testConnection() {
     try {
