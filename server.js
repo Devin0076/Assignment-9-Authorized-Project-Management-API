@@ -26,21 +26,36 @@ app.use(session({
     }
 }));
 
-// TODO: Create JWT middleware to replace session auth
 function requireAuth(req, res, next) {
-    if (req.session && req.session.userId) {
-        req.user = {
-            id: req.session.userId,
-            name: req.session.userName,
-            email: req.session.userEmail
-        };
+    try {
+        // Look for token in Authorization header
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+        }
+
+        // Extract the token
+        const token = authHeader.split(' ')[1];
+
+        // Verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        // Attach decoded user info to req
+        req.user = decoded;
+
         next();
-    } else {
-        res.status(401).json({ 
-            error: 'Authentication required. Please log in.' 
-        });
+
+    } catch (error) {
+        console.error('JWT auth error:', error);
+
+        if (error.name === 'TokenExpiredError') {
+            return res.status(401).json({ error: 'Token expired. Please log in again.' });
+        }
+
+        return res.status(401).json({ error: 'Invalid or missing token' });
     }
 }
+
 
 // Test database connection
 async function testConnection() {
@@ -137,15 +152,12 @@ app.post('/api/login', async (req, res) => {
 });
 
 
-// POST /api/logout - User logout
+// POST /api/logout - JWT version (stateless)
 app.post('/api/logout', (req, res) => {
-    req.session.destroy((err) => {
-        if (err) {
-            return res.status(500).json({ error: 'Failed to logout' });
-        }
-        res.json({ message: 'Logout successful' });
-    });
+    // Nothing to destroy — JWTs are stateless
+    res.json({ message: 'Logout successful' });
 });
+
 
 // USER ROUTES
 
